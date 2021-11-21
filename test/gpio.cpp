@@ -1,9 +1,5 @@
 #include <iostream>
-#include <memory>
-#include <thread>
-#include <array>
-
-#include <boost/signals2.hpp>
+#include <chrono>
 
 #include <lpl/peripheral/gpio.hpp>
 
