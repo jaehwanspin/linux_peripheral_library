@@ -1,5 +1,5 @@
-#ifndef __LPL_GPIO_HPP__
-#define __LPL_GPIO_HPP__
+#ifndef __LPL_PERIPHERAL_GPIO_HPP__
+#define __LPL_PERIPHERAL_GPIO_HPP__
 ///////////////////////////////////////////////////////////////////////
 //                    _     ___ _   _ _   ___  __                    //
 //                   | |   |_ _| \ | | | | \ \/ /                    //
@@ -36,24 +36,8 @@
 //                                                                   //
 ///////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////
-//           _           _     _   _             __            _     //
-// __      _| |__   __ _| |_  | |_| |__   ___   / _|_   _  ___| | __ //
-// \ \ /\ / / '_ \ / _` | __| | __| '_ \ / _ \ | |_| | | |/ __| |/ / //
-//  \ V  V /| | | | (_| | |_  | |_| | | |  __/ |  _| |_| | (__|   <  //
-//   \_/\_/ |_| |_|\__,_|\__|  \__|_| |_|\___| |_|  \__,_|\___|_|\_\ //
-//                                                                   //
-//                               _ _                                 //
-//                              | (_)_ __                            //
-//                           _  | | | '_ \                           //
-//                          | |_| | | | | |                          //
-//                           \___/|_|_| |_|                          //
-//                                                                   //
-///////////////////////////////////////////////////////////////////////
-
 #include <unistd.h>
 #include <fcntl.h>
-#include <linux/gpio.h>
 
 #include <thread>
 #include <functional>
@@ -63,7 +47,8 @@
 
 #include <boost/filesystem.hpp>
 
-#include "lpl/common.hpp"
+#include "lpl/epoll/epoll.hpp"
+#include "lpl/peripheral/common.hpp"
 
 namespace lpl
 {
@@ -92,14 +77,13 @@ enum class edge_t : uint8_t
 };
 
 
-
-
 /**
  * @author Jin
  * @brief General Input/Output device class
  */
 class gpio
 {
+    friend class epoll::epoll;
 
 public:
     explicit gpio(int idx);
@@ -114,7 +98,6 @@ private:
     void _close_all();
     void _export_device();
     void _unexport_device();
-    void _async_input_handler();
 
 public:
     direction_t direction() const;
@@ -129,13 +112,10 @@ public:
     void set_direction(direction_t dir);
     void set_edge(edge_t ed);
     void set_active_low(bool val);
-    void async_read(std::function<void(value_t)>);
 
 private:
     etl::string<255>  _device_fullpath;
     file_descriptor_t _value_fd;
-    std::thread       _async_input_thr;
-    
 };
 
 
@@ -210,9 +190,9 @@ void gpio::_open_all()
  */
 void gpio::_close_all()
 {
+    if (this->direction() == direction_t::out)
+        this->write(false);
     ::close(this->_value_fd);
-    if (this->_async_input_thr.joinable())
-        this->_async_input_thr.join();
 }
 
 /**
@@ -252,14 +232,6 @@ void gpio::_unexport_device()
     std::ofstream ofs(fullpath);
     ofs << idx_str << std::endl;
 }
-
-
-
-void gpio::_async_input_handler()
-{
-
-}
-
 
 
 value_t gpio::read() const

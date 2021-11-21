@@ -1,5 +1,5 @@
-#ifndef __LPL_UART_HPP__
-#define __LPL_UART_HPP__
+#ifndef __LPL_PERIPHERAL_UART_HPP__
+#define __LPL_PERIPHERAL_UART_HPP__
 
 ///////////////////////////////////////////////////////////////////////
 //                       _   _   _    ____ _____                     //

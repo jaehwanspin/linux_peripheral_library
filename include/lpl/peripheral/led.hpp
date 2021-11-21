@@ -1,5 +1,6 @@
-#ifndef __LPL_COMMON_HPP__
-#define __LPL_COMMON_HPP__
+#ifndef __LPL_PERIPHERAL_LED_HPP__
+#define __LPL_PERIPHERAL_LED_HPP__
+
 ///////////////////////////////////////////////////////////////////////
 //                    _     ___ _   _ _   ___  __                    //
 //                   | |   |_ _| \ | | | | \ \/ /                    //
@@ -28,65 +29,29 @@
 ///////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////
-//                 ____ ___  __  __ __  __  ___  _   _               //
-//                / ___/ _ \|  \/  |  \/  |/ _ \| \ | |              //
-//               | |  | | | | |\/| | |\/| | | | |  \| |              //
-//               | |__| |_| | |  | | |  | | |_| | |\  |              //
-//                \____\___/|_|  |_|_|  |_|\___/|_| \_|              //
+//                         _     _____ ____                          //
+//                        | |   | ____|  _ \                         //
+//                        | |   |  _| | | | |                        //
+//                        | |___| |___| |_| |                        //
+//                        |_____|_____|____/                         //
 //                                                                   //
 ///////////////////////////////////////////////////////////////////////
-
-
-#include <fcntl.h>
-
-#include <cinttypes>
-#include <ostream>
 
 namespace lpl
 {
 
-
-constexpr const char* __peri_path = "/sys/class";
-constexpr const char* __gpio_path = "gpio";
-constexpr const char* __i2c_path = "i2c";
-constexpr const char* __pwm_path = "pwm";
-
-template <typename _Ty, size_t _Size>
-using arr_t = _Ty[_Size];
-
-template <size_t _Size>
-using ch8_t = arr_t<char, _Size>;
-
-using file_descriptor_t = int;
-
 /**
  * @author Jin
- * @brief bool value
+ * @brief built-in LED device class
  */
-enum class value_t : uint8_t
+class led
 {
-    off = 0x00,
-    on = 0x01
-};
 
-/**
- * @author Jin
- * @brief PWM polarity constants
- */
-enum class polarity_t : uint8_t
-{
-    normal,
-    inversed
+private:
+    
 };
 
 }
 
-
-
-std::ostream& operator<<(std::ostream& os, lpl::value_t val)
-{
-    os << static_cast<int>(val);
-    return os;
-}
 
 #endif
