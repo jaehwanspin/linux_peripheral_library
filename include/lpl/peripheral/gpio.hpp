@@ -39,42 +39,49 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <thread>
-#include <functional>
 #include <fstream>
+#include <cstring>
+#include <cstdlib>
+
+#if __cplusplus >= 201703L
+#include <filesystem>
+#else
+#include <boost/filesystem.hpp>
+#endif
 
 #include <etl/string.h>
 
-#include <boost/filesystem.hpp>
-
-#include "lpl/epoll/epoll.hpp"
-#include "lpl/peripheral/common.hpp"
+#include "../common.hpp"
 
 namespace lpl
+{
+namespace gpio
 {
 
 /**
  * @author Jin
  * @brief GPIO device input/output direction
  */
-enum class direction_t : uint32_t
+using direction_t = uint8_t;
+namespace directions
 {
-    in,
-    out
-};
+    constexpr direction_t in = 0x00;
+    constexpr direction_t out = 0x01;
+}
 
 
 /**
  * @author Jin
  * @brief for gpio async event
  */
-enum class edge_t : uint8_t
+using edge_t = uint8_t;
+namespace edges
 {
-    none,
-    rising,
-    falling,
-    both
-};
+    constexpr edge_t none = 0x00;
+    constexpr edge_t rising = 0x01;
+    constexpr edge_t falling = 0x02;
+    constexpr edge_t both = 0x03;
+}
 
 
 /**
@@ -83,12 +90,28 @@ enum class edge_t : uint8_t
  */
 class gpio
 {
-    friend class epoll::epoll;
+    
+#if __cplusplus >= 201703L
+    using __fs_path = std::filesystem::path;
+    template <typename _Ty>
+    constexpr bool __fs_exists(_Ty ___path) { return std::filesystem::exists(___path); }
+#else
+    using __fs_path = boost::filesystem::path;
+    template <typename _Ty>
+    constexpr bool __fs_exists(_Ty ___path) { return boost::filesystem::exists(___path); }
+#endif
+    
 
 public:
     explicit gpio(int idx);
     gpio(int idx, direction_t dir);
     gpio(gpio& other) = delete;
+
+    gpio& operator<<(int val);
+    gpio& operator<<(value_t val);
+    gpio& operator<<(bool val);
+    gpio& operator>>(value_t& val);
+
     virtual ~gpio();
 
 private:
@@ -104,7 +127,7 @@ public:
     value_t value() const;
     edge_t edge() const;
     bool active_low() const;
-    file_descriptor_t value_fd() const;
+    file_descriptor_t fd() const;
     value_t read() const;
     ssize_t write(value_t value);
     ssize_t write(int value);
@@ -114,8 +137,8 @@ public:
     void set_active_low(bool val);
 
 private:
-    etl::string<255>  _device_fullpath;
-    file_descriptor_t _value_fd;
+    etl::string<256>  _device_fullpath;
+    file_descriptor_t _fd;
 };
 
 
@@ -148,7 +171,7 @@ gpio::~gpio()
  */
 bool gpio::_exported()
 {
-    return boost::filesystem::exists(this->_device_fullpath.c_str());
+    return __fs_exists(this->_device_fullpath.c_str());
 }
 
 /**
@@ -157,8 +180,8 @@ bool gpio::_exported()
  */
 void gpio::_set_fullpath(int idx)
 {
-    boost::filesystem::path p(__peri_path);
-    ch8_t<8> device_with_num = {
+    __fs_path p(__peri_path);
+    str8_t<8> device_with_num = {
         0,
     };
     
@@ -174,14 +197,14 @@ void gpio::_set_fullpath(int idx)
  */
 void gpio::_open_all()
 {
-    boost::filesystem::path p(this->_device_fullpath.c_str());
+    __fs_path p(this->_device_fullpath.c_str());
     p /= "value";
-    if (!boost::filesystem::exists(p))
+    if (!__fs_exists(p))
         throw std::exception();
     do
     {
-        this->_value_fd = ::open(p.string().c_str(), O_RDWR | O_NONBLOCK);
-    } while (this->_value_fd == -1);
+        this->_fd = ::open(p.string().c_str(), O_RDWR | O_NONBLOCK);
+    } while (this->_fd == -1);
 }
 
 /**
@@ -190,9 +213,9 @@ void gpio::_open_all()
  */
 void gpio::_close_all()
 {
-    if (this->direction() == direction_t::out)
+    if (this->direction() == directions::out)
         this->write(false);
-    ::close(this->_value_fd);
+    ::close(this->_fd);
 }
 
 /**
@@ -202,7 +225,7 @@ void gpio::_close_all()
 void gpio::_export_device()
 {
     int idx = 0;
-    boost::filesystem::path fullpath = lpl::__peri_path;
+    __fs_path fullpath = lpl::__peri_path;
     fullpath /= lpl::__gpio_path;
     fullpath /= "export";
 
@@ -221,7 +244,7 @@ void gpio::_export_device()
 void gpio::_unexport_device()
 {
     int idx = 0;
-    boost::filesystem::path fullpath = lpl::__peri_path;
+    __fs_path fullpath = lpl::__peri_path;
     fullpath /= lpl::__gpio_path;
     fullpath /= "unexport";
 
@@ -236,9 +259,9 @@ void gpio::_unexport_device()
 
 value_t gpio::read() const
 {
-    ch8_t<2> val = { 0, };
-    auto n = ::lseek64(this->_value_fd, 0, SEEK_SET);
-    ::read(this->_value_fd, val, sizeof(val));
+    str8_t<2> val = { 0, };
+    auto n = ::lseek64(this->_fd, 0, SEEK_SET);
+    ::read(this->_fd, val, sizeof(val));
     return static_cast<value_t>(val[0] - 48);
 }
 
@@ -246,19 +269,19 @@ direction_t gpio::direction() const
 {
     direction_t result;
 
-    ch8_t<4> val = { 0, };
+    str8_t<4> val = { 0, };
     
     {
-        boost::filesystem::path p(this->_device_fullpath.c_str());
+        __fs_path p(this->_device_fullpath.c_str());
         p /= "direction";
         std::ifstream ifs(p);
         ifs >> val;
     }
 
     if (0 == std::strcmp(val, "in"))
-        result = direction_t::in;
+        result = directions::in;
     else if (0 == std::strcmp(val, "out"))
-        result = direction_t::out;
+        result = directions::out;
 
     return result;
 }
@@ -267,33 +290,33 @@ edge_t gpio::edge() const
 {
     edge_t result;
 
-    ch8_t<8> val = { 0, };
+    str8_t<8> val = { 0, };
     
     {
-        boost::filesystem::path p(this->_device_fullpath.c_str());
+        __fs_path p(this->_device_fullpath.c_str());
         p /= "edge";
         std::ifstream ifs(p);
         ifs >> val;
     }
 
     if (0 == std::strcmp(val, "none"))
-        result = edge_t::none;
+        result = edges::none;
     else if (0 == std::strcmp(val, "rising"))
-        result = edge_t::rising;
+        result = edges::rising;
     else if (0 == std::strcmp(val, "falling"))
-        result = edge_t::falling;
+        result = edges::falling;
     else if (0 == std::strcmp(val, "both"))
-        result = edge_t::both;
+        result = edges::both;
 
     return result;
 }
 
 bool gpio::active_low() const
 {
-    ch8_t<2> val = { 0, };
+    str8_t<2> val = { 0, };
 
     {
-        boost::filesystem::path p(this->_device_fullpath.c_str());
+        __fs_path p(this->_device_fullpath.c_str());
         p /= "active_low";
         std::ifstream ifs(p);
         ifs >> val;
@@ -307,53 +330,53 @@ value_t gpio::value() const
     return this->read();
 }
 
-file_descriptor_t gpio::value_fd() const
+file_descriptor_t gpio::fd() const
 {
-    return this->_value_fd;
+    return this->_fd;
 }
 
 ssize_t gpio::write(value_t value)
 {
-    ch8_t<3> val = {
+    str8_t<3> val = {
         static_cast<char>(static_cast<int>(value)  + static_cast<int>('0')),
         '\n',
         0
     };
-    return ::write(this->_value_fd, val, std::strlen(val) + 1);
+    return ::write(this->_fd, val, std::strlen(val) + 1);
 }
 
 ssize_t gpio::write(int value)
 {
-    ch8_t<3> val = {
+    str8_t<3> val = {
         static_cast<char>(value + '0'),
         '\n',
         0
     };
-    return ::write(this->_value_fd, val, sizeof(val) + 1);
+    return ::write(this->_fd, val, sizeof(val) + 1);
 }
 
 ssize_t gpio::write(bool value)
 {
-    ch8_t<3> val = {
+    str8_t<3> val = {
         static_cast<char>(value + static_cast<int>('0')),
         '\n',
         0
     };
-    return ::write(this->_value_fd, val, sizeof(val) + 1);
+    return ::write(this->_fd, val, sizeof(val) + 1);
 }
 
 void gpio::set_direction(direction_t dir)
 {
-    boost::filesystem::path p(this->_device_fullpath.c_str());
+    __fs_path p(this->_device_fullpath.c_str());
     p /= "direction";
     std::ofstream ofs(p);
 
     switch (dir)
     {
-    case decltype(dir)::in:
+    case directions::in:
         ofs << "in" << std::endl;
         break;
-    case decltype(dir)::out:
+    case directions::out:
         ofs << "out" << std::endl;
         break;
     }
@@ -361,24 +384,24 @@ void gpio::set_direction(direction_t dir)
 
 void gpio::set_edge(edge_t ed)
 {
-    if (this->direction() == direction_t::in)
+    if (this->direction() == directions::in)
     {
-        boost::filesystem::path p(this->_device_fullpath.c_str());
+        __fs_path p(this->_device_fullpath.c_str());
         p /= "edge";
         std::ofstream ofs(p);
 
         switch (ed)
         {
-        case decltype(ed)::none:
+        case edges::none:
             ofs << "none" << std::endl;
             break;
-        case decltype(ed)::rising:
+        case edges::rising:
             ofs << "rising" << std::endl;
             break;
-        case decltype(ed)::falling:
+        case edges::falling:
             ofs << "falling" << std::endl;
             break;
-        case decltype(ed)::both:
+        case edges::both:
             ofs << "both" << std::endl;
             break;
         }
@@ -388,7 +411,7 @@ void gpio::set_edge(edge_t ed)
 
 void gpio::set_active_low(bool val)
 {
-    boost::filesystem::path p(this->_device_fullpath.c_str());
+    __fs_path p(this->_device_fullpath.c_str());
     p /= "edge";
     std::ofstream ofs(p);
     
@@ -396,6 +419,32 @@ void gpio::set_active_low(bool val)
 }
 
 
+gpio& gpio::operator<<(int val)
+{
+    this->write(static_cast<uint8_t>(val));
+    return *this;
+}
+
+gpio& gpio::operator<<(value_t val)
+{
+    this->write(val);
+    return *this;
+}
+
+gpio& gpio::operator<<(bool val)
+{
+    this->write(val);
+    return *this;
+}
+
+gpio& gpio::operator>>(value_t& val)
+{
+    val = this->read();
+    return *this;
+}
+
+
+}
 }
 
 

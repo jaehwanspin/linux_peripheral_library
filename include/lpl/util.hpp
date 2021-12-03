@@ -36,13 +36,25 @@
 //                                                                   //
 ///////////////////////////////////////////////////////////////////////
 
-#include <iostream>
+#include <chrono>
+#include <thread>
 
-#include <lpl/peripheral/common.hpp>
+#include "./common.hpp"
 
 namespace lpl
 {
 
+namespace realtime
+{
+
+template<typename _Rep, typename _Period>
+inline void delay_for(const std::chrono::duration<_Rep, _Period>& __rtime)
+{
+    std::this_thread::sleep_until(
+        std::chrono::high_resolution_clock::now() + __rtime);
+}
+
+}
 
 
 }

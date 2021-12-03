@@ -38,10 +38,13 @@
 #include <thread>
 #include <atomic>
 
-#include "lpl/peripheral/common.hpp"
-#include "lpl/peripheral/gpio.hpp"
+#include "../util.hpp"
+#include "../common.hpp"
+#include "./gpio.hpp"
 
 namespace lpl
+{
+namespace gpio
 {
 
 class soft_pwm
@@ -57,26 +60,26 @@ public:
     bool         enable() const;
     uint64_t     period() const;
     uint64_t     duty_cycle() const;
-    polarity_t   polarity() const;
+    pwm::polarity_t   polarity() const;
     void         set_enable(bool val);
     void         set_period(uint64_t val);
     void         set_duty_cycle(uint64_t val);
-    void         set_polarity(polarity_t val);
+    void         set_polarity(pwm::polarity_t val);
 
 private:
-    std::atomic<bool>                  _enable;
-    std::atomic<uint64_t>              _period;
-    std::atomic<uint64_t>              _duty_cycle;
-    std::atomic<polarity_t>            _polarity;
-    gpio                  _gpio;
-    std::thread           _control_thr;
+    std::atomic_bool        _enable;
+    std::atomic_uint64_t    _period;
+    std::atomic_uint64_t    _duty_cycle;
+    std::atomic<pwm::polarity_t> _polarity;
+    gpio                    _gpio;
+    std::thread             _control_thr;
 };
 
 soft_pwm::soft_pwm(int gpio_num) :
     _gpio(gpio_num),
-    _polarity(polarity_t::normal)
+    _polarity(pwm::polarities::normal)
 {
-    this->_gpio.set_direction(direction_t::out);
+    this->_gpio.set_direction(directions::out);
 }
 
 soft_pwm::~soft_pwm()
@@ -87,28 +90,32 @@ soft_pwm::~soft_pwm()
 
 void soft_pwm::_control_handler()
 {
+    using ns = std::chrono::nanoseconds;
+    auto now = std::chrono::high_resolution_clock::now();
     while (this->_enable)
     {
         auto peri_nanosec = std::nano::den / this->_period;
         auto percent = (this->_duty_cycle * 100) / this->_period;
         auto duty_nanosec = peri_nanosec * percent / 100;
-        
+
         switch (this->_polarity)
         {
-        case polarity_t::normal:
+        case pwm::polarities::normal:
         {
             this->_gpio.write(true);
-            std::this_thread::sleep_for(std::chrono::nanoseconds(peri_nanosec - (peri_nanosec - duty_nanosec)));
+            now += ns(peri_nanosec - (peri_nanosec - duty_nanosec));
+            std::this_thread::sleep_until(now);
             this->_gpio.write(false);
-            std::this_thread::sleep_for(std::chrono::nanoseconds(peri_nanosec - duty_nanosec));
+            now += ns(peri_nanosec - duty_nanosec);
+            std::this_thread::sleep_until(now);
             break;
         }
-        case polarity_t::inversed:
+        case pwm::polarities::inversed:
         {
-            this->_gpio.write(true);
-            std::this_thread::sleep_for(std::chrono::nanoseconds(peri_nanosec - duty_nanosec));
             this->_gpio.write(false);
-            std::this_thread::sleep_for(std::chrono::nanoseconds(peri_nanosec - (peri_nanosec - duty_nanosec)));
+            realtime::delay_for(ns(peri_nanosec - duty_nanosec));   
+            this->_gpio.write(true);
+            realtime::delay_for(ns(peri_nanosec - (peri_nanosec - duty_nanosec)));
             break;
         }
         }
@@ -130,7 +137,7 @@ uint64_t soft_pwm::duty_cycle() const
     return this->_duty_cycle;
 }
 
-polarity_t soft_pwm::polarity() const
+pwm::polarity_t soft_pwm::polarity() const
 {
     return this->_polarity;
 }
@@ -143,8 +150,7 @@ void soft_pwm::set_enable(bool val)
         this->_control_thr =
             std::thread(&soft_pwm::_control_handler, this);
         auto pthr_fd = this->_control_thr.native_handle();
-        struct sched_param sch_param = { 0, };
-        sch_param.sched_priority = ::sched_get_priority_max(SCHED_RR);
+        struct sched_param sch_param = { ::sched_get_priority_max(SCHED_RR) };
         ::pthread_setschedparam(pthr_fd, SCHED_RR, &sch_param);
     }
     else
@@ -164,13 +170,14 @@ void soft_pwm::set_duty_cycle(uint64_t val)
     this->_duty_cycle = val;
 }
 
-void soft_pwm::set_polarity(polarity_t val)
+void soft_pwm::set_polarity(pwm::polarity_t val)
 {
     this->_polarity = val;
 }
 
 
 
+}
 }
 
 #endif

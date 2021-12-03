@@ -40,53 +40,75 @@
 #include <fcntl.h>
 
 #include <cinttypes>
-#include <ostream>
+#include <exception>
 
 namespace lpl
 {
 
-
+constexpr const char* __dev_path = "/dev";
 constexpr const char* __peri_path = "/sys/class";
 constexpr const char* __gpio_path = "gpio";
 constexpr const char* __i2c_path = "i2c";
+constexpr const char* __pwmchip_path = "pwmchip";
 constexpr const char* __pwm_path = "pwm";
+constexpr const char* __led_path = "leds";
 
 template <typename _Ty, size_t _Size>
 using arr_t = _Ty[_Size];
 
+using ch8_t = char;
+
 template <size_t _Size>
-using ch8_t = arr_t<char, _Size>;
+using str8_t = arr_t<ch8_t, _Size>;
 
 using file_descriptor_t = int;
 
+template <typename _Ty, size_t _Size>
+struct buf_t
+{
+    arr_t<_Ty, _Size> buf;
+    size_t            size;
+};
+
+template <size_t _Size>
+struct bytebuf_t : buf_t<uint8_t, _Size> { };
+
+
+namespace gpio
+{
 /**
  * @author Jin
  * @brief bool value
  */
-enum class value_t : uint8_t
+using value_t = uint8_t;
+namespace values
 {
-    off = 0x00,
-    on = 0x01
-};
+    constexpr value_t low = 0x00;
+    constexpr value_t high = 0x01;
+}
+}
 
+namespace pwm
+{
 /**
  * @author Jin
  * @brief PWM polarity constants
  */
-enum class polarity_t : uint8_t
+using polarity_t = uint8_t;
+namespace polarities
 {
-    normal,
-    inversed
-};
+    constexpr polarity_t normal = 0x00;
+    constexpr polarity_t inversed = 0x01;
+}
 
 }
 
 
-
-std::ostream& operator<<(std::ostream& os, lpl::value_t val)
+namespace led
 {
-    os << static_cast<int>(val);
-    return os;
+using brightness_t = uint32_t;
+}
+
 }
 
 #endif

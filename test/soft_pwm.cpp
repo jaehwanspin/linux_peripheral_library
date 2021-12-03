@@ -1,47 +1,44 @@
 #include <iostream>
 
+#include <lpl/peripheral/pwm.hpp>
 #include <lpl/peripheral/soft_pwm.hpp>
 
 int main(int argc, char** argv)
 {
     using namespace std::literals;
 
-    lpl::soft_pwm sp(168);
-    sp.set_period(1'000'000);
-    sp.set_duty_cycle(0);
-    sp.set_enable(true);
+    lpl::gpio::soft_pwm led1(22);
+    lpl::gpio::soft_pwm led2(23);
+    lpl::gpio::soft_pwm led3(27);
 
-    uint64_t duty = 0;
+    led1.set_period(1'000);
+    led1.set_duty_cycle(0);
+    led1.set_enable(true);
+    led2.set_period(1'000);
+    led2.set_duty_cycle(0);
+    led2.set_enable(true);
+    led3.set_period(1'000);
+    led3.set_duty_cycle(0);
+    led3.set_enable(true);
 
-    for (int i = 0; i <= 1'000'000; i += 100'000)
+    for (int i = 0; i < 5; i++)
     {
-        sp.set_duty_cycle(i);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-
-    for (int i = 1'000'000; i >= 0; i -= 100'000)
-    {
-        sp.set_duty_cycle(i);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-
+        for (int i = 0; i <= 1'000; i += 1)
+        {
+            led1.set_duty_cycle(i);
+            led2.set_duty_cycle(i);
+            led3.set_duty_cycle(i);
+            lpl::realtime::delay_for(1ms);
+        }
     
-
-    // while (true)
-    // {
-    //     for (int i = 0; i <= 1000; i++)
-    //     {
-    //         duty += i * 1'000;
-    //         sp.set_duty_cycle(duty);
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    //     }
-    //     for (int i = 1000; i >= 0; i--)
-    //     {
-    //         duty -= i * 1'000;
-    //         sp.set_duty_cycle(duty);
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    //     }
-    // }
+        for (int i = 1'000; i >= 0; i -= 1)
+        {
+            led1.set_duty_cycle(i);
+            led2.set_duty_cycle(i);
+            led3.set_duty_cycle(i);
+            lpl::realtime::delay_for(1ms);
+        }
+    }
 
     return 0;
 }
