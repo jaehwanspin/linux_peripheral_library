@@ -61,6 +61,8 @@ namespace led
  */
 class led
 {
+    
+
 #if __cplusplus >= 201703L
     using __fs_path = std::filesystem::path;
     template <typename _Ty>
@@ -107,7 +109,7 @@ brightness_t led::brightness() const
     brightness_t value = 0;
     __fs_path p(this->_device_fullpath.c_str());
     p /= "brightness";
-    std::ifstream ifs(p);
+    std::ifstream ifs(p.string());
     ifs >> value;
     return value;
 }
@@ -117,7 +119,7 @@ brightness_t led::max_brightness() const
     brightness_t value = 0;
     __fs_path p(this->_device_fullpath.c_str());
     p /= "max_brightness";
-    std::ifstream ifs(p);
+    std::ifstream ifs(p.string());
     ifs >> value;
     return value;
 }
@@ -126,7 +128,7 @@ void led::set_brightness(brightness_t value)
 {
     __fs_path p(this->_device_fullpath.c_str());
     p /= "brightness";
-    std::ofstream ofs(p);
+    std::ofstream ofs(p.string());
     ofs << value;
 }
 

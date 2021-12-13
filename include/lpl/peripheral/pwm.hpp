@@ -48,6 +48,7 @@
 #include <boost/filesystem.hpp>
 #endif
 
+#include "../lpl_traits.hpp"
 #include "../common.hpp"
 
 #include <etl/string.h>
@@ -56,13 +57,15 @@ namespace lpl
 {
 namespace pwm
 {
-
 /**
  * @author Jin
  * @brief Pulse width modulation device class
  */
-class pwm
+class pwm : lpl_traits::pwm_traits
 {
+public:
+    using kind = lpl_traits::pwm_traits;
+
 #if __cplusplus >= 201703L
     using __fs_path = std::filesystem::path;
     template <typename _Ty>
@@ -98,6 +101,9 @@ private:
 
 private:
     etl::string<256>  _device_fullpath;
+
+    uint64_t _period;
+    uint64_t _duty_cycle;
 
 };
 
@@ -157,7 +163,7 @@ void pwm::_export_device()
     auto temp_idx = device_name.find_last_of("pwm");
     auto idx_str = device_name.substr(temp_idx + 1);
     
-    std::ofstream ofs(fullpath);
+    std::ofstream ofs(fullpath.string());
     ofs << idx_str << std::endl;
 
     while (!__fs_exists(this->_device_fullpath.c_str()));
@@ -174,7 +180,7 @@ void pwm::_unexport_device()
     auto temp_idx = device_name.find_last_of("pwm");
     auto idx_str = device_name.substr(temp_idx + 1);
     
-    std::ofstream ofs(fullpath);
+    std::ofstream ofs(fullpath.string());
     ofs << idx_str << std::endl;
 }
 
@@ -184,25 +190,27 @@ void pwm::set_enable(bool val)
     __fs_path p(this->_device_fullpath.c_str());
     p /= "enable";
 
-    std::ofstream ofs(p);
+    std::ofstream ofs(p.string());
     ofs << static_cast<int>(val) << std::endl;
 }
 
 void pwm::set_period(uint64_t val)
 {
+    this->_period = val;
     __fs_path p(this->_device_fullpath.c_str());
     p /= "period";
 
-    std::ofstream ofs(p);
+    std::ofstream ofs(p.string());
     ofs << val << std::endl;
 }
 
 void pwm::set_duty_cycle(uint64_t val)
 {
+    this->_duty_cycle = val;
     __fs_path p(this->_device_fullpath.c_str());
     p /= "duty_cycle";
 
-    std::ofstream ofs(p);
+    std::ofstream ofs(p.string());
     ofs << val << std::endl;
 }
 
@@ -211,7 +219,7 @@ void pwm::set_polarity(polarity_t val)
     __fs_path p(this->_device_fullpath.c_str());
     p /= "polarity";
 
-    std::ofstream ofs(p);
+    std::ofstream ofs(p.string());
     switch (val)
     {
     case polarities::normal:
@@ -229,31 +237,19 @@ bool pwm::enable() const
     __fs_path p(this->_device_fullpath.c_str());
     p /= "enable";
 
-    std::ifstream ifs(p);
+    std::ifstream ifs(p.string());
     ifs >> val;
     return static_cast<bool>(val[0] - 48);
 }
 
 uint64_t pwm::period() const
 {
-    str8_t<21> val = { 0, };
-    __fs_path p(this->_device_fullpath.c_str());
-    p /= "period";
-    std::ifstream ifs(p);
-    ifs >> val;
-
-    return std::strtoull(val, nullptr, 10);
+    return this->_period;
 }
 
 uint64_t pwm::duty_cycle() const
 {
-    str8_t<21> val = { 0, };
-    __fs_path p(this->_device_fullpath.c_str());
-    p /= "duty_cycle";
-    std::ifstream ifs(p);
-    ifs >> val;
-
-    return std::strtoull(val, nullptr, 10);
+    return this->_duty_cycle;
 }
 
 polarity_t pwm::polarity() const
@@ -265,7 +261,7 @@ polarity_t pwm::polarity() const
     {
         __fs_path p(this->_device_fullpath.c_str());
         p /= "polarity";
-        std::ifstream ifs(p);
+        std::ifstream ifs(p.string());
         ifs >> val;
     }
 

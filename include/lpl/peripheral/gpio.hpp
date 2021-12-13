@@ -51,6 +51,7 @@
 
 #include <etl/string.h>
 
+#include "../lpl_traits.hpp"
 #include "../common.hpp"
 
 namespace lpl
@@ -88,9 +89,9 @@ namespace edges
  * @author Jin
  * @brief General Input/Output device class
  */
-class gpio
+struct gpio
 {
-    
+    using kind = lpl_traits::gpio_traits;
 #if __cplusplus >= 201703L
     using __fs_path = std::filesystem::path;
     template <typename _Ty>
@@ -100,7 +101,6 @@ class gpio
     template <typename _Ty>
     constexpr bool __fs_exists(_Ty ___path) { return boost::filesystem::exists(___path); }
 #endif
-    
 
 public:
     explicit gpio(int idx);
@@ -199,7 +199,7 @@ void gpio::_open_all()
 {
     __fs_path p(this->_device_fullpath.c_str());
     p /= "value";
-    if (!__fs_exists(p))
+    if (!__fs_exists(p.string()))
         throw std::exception();
     do
     {
@@ -233,7 +233,7 @@ void gpio::_export_device()
     auto temp_idx = device_name.find_last_of("gpio");
     auto idx_str = device_name.substr(temp_idx + 1);
     
-    std::ofstream ofs(fullpath);
+    std::ofstream ofs(fullpath.string());
     ofs << idx_str << std::endl;
 }
 
@@ -252,7 +252,7 @@ void gpio::_unexport_device()
     auto temp_idx = device_name.find_last_of("gpio");
     auto idx_str = device_name.substr(temp_idx + 1);
 
-    std::ofstream ofs(fullpath);
+    std::ofstream ofs(fullpath.string());
     ofs << idx_str << std::endl;
 }
 
@@ -274,7 +274,7 @@ direction_t gpio::direction() const
     {
         __fs_path p(this->_device_fullpath.c_str());
         p /= "direction";
-        std::ifstream ifs(p);
+        std::ifstream ifs(p.string());
         ifs >> val;
     }
 
@@ -295,7 +295,7 @@ edge_t gpio::edge() const
     {
         __fs_path p(this->_device_fullpath.c_str());
         p /= "edge";
-        std::ifstream ifs(p);
+        std::ifstream ifs(p.string());
         ifs >> val;
     }
 
@@ -318,7 +318,7 @@ bool gpio::active_low() const
     {
         __fs_path p(this->_device_fullpath.c_str());
         p /= "active_low";
-        std::ifstream ifs(p);
+        std::ifstream ifs(p.string());
         ifs >> val;
     }
 
@@ -369,7 +369,7 @@ void gpio::set_direction(direction_t dir)
 {
     __fs_path p(this->_device_fullpath.c_str());
     p /= "direction";
-    std::ofstream ofs(p);
+    std::ofstream ofs(p.string());
 
     switch (dir)
     {
@@ -388,7 +388,7 @@ void gpio::set_edge(edge_t ed)
     {
         __fs_path p(this->_device_fullpath.c_str());
         p /= "edge";
-        std::ofstream ofs(p);
+        std::ofstream ofs(p.string());
 
         switch (ed)
         {
@@ -413,7 +413,7 @@ void gpio::set_active_low(bool val)
 {
     __fs_path p(this->_device_fullpath.c_str());
     p /= "edge";
-    std::ofstream ofs(p);
+    std::ofstream ofs(p.string());
     
     ofs << (val ? '1' : '0') << std::endl;
 }

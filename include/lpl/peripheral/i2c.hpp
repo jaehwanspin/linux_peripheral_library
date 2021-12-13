@@ -19,6 +19,7 @@
 #include <etl/vector.h>
 #include <etl/string.h>
 
+#include "../lpl_traits.hpp"
 #include "../common.hpp"
 
 namespace lpl
@@ -31,6 +32,8 @@ constexpr size_t i2c_max_devs = 127;
 
 class i2c
 {
+    using kind = lpl_traits::i2c_traits;
+
 #if __cplusplus >= 201703L
     using __fs_path = std::filesystem::path;
     template <typename _Ty>
@@ -59,7 +62,7 @@ public:
     int write(uint8_t value);
     int write(uint8_t* value, size_t size);
     template <typename _Container, std::enable_if_t<
-        std::is_same_v<typename _Container::value_type, uint8_t>>>
+        std::is_same<typename _Container::value_type, uint8_t>::value>>
     int write(const _Container& value);
     
     int read(uint8_t* buf, size_t size);
@@ -68,7 +71,7 @@ public:
     int write_reg(uint8_t reg, uint8_t* value, size_t size);
     
     template <typename _Container, std::enable_if_t<
-        std::is_same_v<typename _Container::value_type, uint8_t>>>
+        std::is_same<typename _Container::value_type, uint8_t>::value>>
     int write_reg(uint8_t reg, const _Container& value);
     
     int read_reg(uint8_t reg, uint8_t* buf, size_t size);
@@ -179,7 +182,7 @@ int i2c::write(uint8_t* buf, size_t size)
 }
 
 template <typename _Container, std::enable_if_t<
-    std::is_same_v<typename _Container::value_type, uint8_t>>>
+    std::is_same<typename _Container::value_type, uint8_t>::value>>
 int i2c::write(const _Container &value)
 {
     return ::write(this->_fd, value.data(), value.size());
@@ -221,7 +224,7 @@ int i2c::write_reg(uint8_t reg, uint8_t* value, size_t size)
 }
 
 template <typename _Container, std::enable_if_t<
-    std::is_same_v<typename _Container::value_type, uint8_t>>>
+    std::is_same<typename _Container::value_type, uint8_t>::value>>
 int i2c::write_reg(uint8_t reg, const _Container& value)
 {
     auto buf = std::make_unique<uint8_t[]>(value.size() + 1);

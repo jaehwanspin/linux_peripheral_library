@@ -7,8 +7,8 @@ int main(int argc, char** argv)
 {
     using namespace std::literals;
 
-    lpl::gpio::soft_pwm led1(22);
-    lpl::gpio::soft_pwm led2(23);
+    lpl::gpio::soft_pwm led1(17);
+    lpl::gpio::soft_pwm led2(18);
     lpl::gpio::soft_pwm led3(27);
 
     led1.set_period(1'000);

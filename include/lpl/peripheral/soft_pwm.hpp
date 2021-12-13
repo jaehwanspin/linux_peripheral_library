@@ -38,6 +38,7 @@
 #include <thread>
 #include <atomic>
 
+#include "../lpl_traits.hpp"
 #include "../util.hpp"
 #include "../common.hpp"
 #include "./gpio.hpp"
@@ -47,10 +48,13 @@ namespace lpl
 namespace gpio
 {
 
-class soft_pwm
+struct soft_pwm
 {
+    using kind = lpl_traits::gpio_traits;
+
 public:
     explicit soft_pwm(int gpio_num);
+    soft_pwm(int gpio_num, uint64_t period, uint64_t duty_cycle);
     ~soft_pwm();
 
 private:
@@ -77,6 +81,15 @@ private:
 
 soft_pwm::soft_pwm(int gpio_num) :
     _gpio(gpio_num),
+    _polarity(pwm::polarities::normal)
+{
+    this->_gpio.set_direction(directions::out);
+}
+
+soft_pwm::soft_pwm(int gpio_num, uint64_t period, uint64_t duty_cycle) :
+    _gpio(gpio_num),
+    _period(period),
+    _duty_cycle(duty_cycle),
     _polarity(pwm::polarities::normal)
 {
     this->_gpio.set_direction(directions::out);
@@ -112,10 +125,12 @@ void soft_pwm::_control_handler()
         }
         case pwm::polarities::inversed:
         {
-            this->_gpio.write(false);
-            realtime::delay_for(ns(peri_nanosec - duty_nanosec));   
             this->_gpio.write(true);
-            realtime::delay_for(ns(peri_nanosec - (peri_nanosec - duty_nanosec)));
+            now += ns(peri_nanosec - duty_nanosec);
+            std::this_thread::sleep_until(now);
+            this->_gpio.write(false);
+            now += ns(peri_nanosec - (peri_nanosec - duty_nanosec));
+            std::this_thread::sleep_until(now);
             break;
         }
         }

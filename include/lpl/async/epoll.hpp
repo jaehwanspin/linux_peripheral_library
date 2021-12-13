@@ -147,15 +147,21 @@ template <typename _Rep, typename _Period, std::enable_if_t<
 int epoll::wait(int max_events, const std::chrono::duration<_Rep, _Period>& timeout)
 {
     int millisec = 0;
-    if constexpr (std::is_same_v<decltype(timeout), std::chrono::milliseconds>)
+#if __cplusplus >= 201703L
+    if constexpr (std::is_same<decltype(timeout), std::chrono::milliseconds>::value)
     {
-        int millisec = timeout.count();
+        millisec = timeout.count();
     }
     else
     {
-        int millisec = 
+
+        millisec = 
             std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
     }
+#else
+    millisec = 
+        std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
+#endif
     
     auto num_events =
         ::epoll_wait(this->_epoll_fd, &this->_events, max_events, millisec);
